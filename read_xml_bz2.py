@@ -69,6 +69,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     bz2_file = open(args.xml_bz2_path, "rb")
+
+    #
+    # TODO hard-coded seek here!
+    # Plan is to use index file from dump to seek to streams to reach pages
+    # without decompressing entire XML
+    #
+
     bz2_file.seek(1619327860)
 
     for page in iter_pages(bz2_file):
