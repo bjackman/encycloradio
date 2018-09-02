@@ -1,0 +1,3 @@
+[submodule "python-mwxml"]
+	path = python-mwxml
+	url = git@github.com:bjackman/python-mwxml.git
