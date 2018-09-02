@@ -5,6 +5,7 @@ from bz2 import BZ2Decompressor
 from io import StringIO
 
 import mwxml # Parses the XML so we can get the MediaWiki source out
+import mwparserfromhell # Parses the actual MediaWiki source
 
 READ_SIZE = 64 * 1024
 
@@ -47,6 +48,20 @@ def iter_pages(bz2_file):
         for page in dump.pages:
             yield page
 
+def find_listens(page):
+    """
+    Take a mwxml.Page and return all the "listen" templates
+
+    Returned as an iterable of mwparserfromhell.Template objects. These should
+    have a "filename" parameter.
+    """
+    # If you iterate over page objects you get each revision. We want the latest
+    # revision. I guess that's the first thing yielded by the iterator (my data
+    # only has single revisions..)
+    mw = mwparserfromhell.parse(next(page).text)
+    # Seems like the template names are messy hence .lower and startswith
+    return (t for t in mw.filter_templates() if t.name.lower().startswith("listen"))
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("xml_bz2_path")
@@ -57,9 +72,6 @@ if __name__ == "__main__":
     bz2_file.seek(1619327860)
 
     for page in iter_pages(bz2_file):
-        if page.title == "Swing Low, Sweet Chariot":
-            # If you iterate over page objects you get each revision (we only
-            # have one revision)
-            revision = next(page)
-            print(revision.text)
-            sys.exit(0)
+        for listen in find_listens(page):
+            print("On page '{}', found file '{}'".format(
+                page.title, listen.get("filename").value))
