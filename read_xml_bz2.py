@@ -9,46 +9,65 @@ import mwxml # Parses the XML so we can get the MediaWiki source out
 import mwparserfromhell # Parses the actual MediaWiki source
 from progressbar import ProgressBar, UnknownLength
 
+from index import WikipediaIndex
+
 READ_SIZE = 64 * 1024
 
-def iter_xml_bz2_streams(bz2_file):
-    """
-    Take a MediaWiki .xml.bz2 file and iterate over the streams
+class WikipediaDump(object):
+    def __init__(self, xml_bz2_file, index):
+        self._bz2_file = xml_bz2_file
+        self.index = index
 
-    Yields each stream decompressed in its entirety. This is useful because
-    Wikipedia XML dumps are enormous .bz2 files but divided into individual
-    streams that can be decompressed separately.
-    """
-    decompressor = BZ2Decompressor()
-    unused_data = b""
-    decompressed = b""
+    def _iter_bz2_streams(self, start_index):
+        """
+        Iterate over the streams in my .bz2 file, starting at start_index
 
-    while True:
-        compressed = unused_data + bz2_file.read(READ_SIZE)
+        Yields each stream decompressed in its entirety. This is useful because
+        Wikipedia XML dumps are enormous .bz2 files but divided into individual
+        streams that can be decompressed separately.
+        """
+        self._bz2_file.seek(start_index)
+
+        decompressor = BZ2Decompressor()
         unused_data = b""
-        decompressed += decompressor.decompress(compressed)
+        decompressed = b""
 
-        if decompressor.eof: # Reached end of bz2 stream
-            yield decompressed
+        while True:
+            compressed = unused_data + self._bz2_file.read(READ_SIZE)
+            unused_data = b""
+            decompressed += decompressor.decompress(compressed)
 
-            # The decompressor is dead now, need a new one for the next stream.
-            # It will generally have hit the bz2 EOF before the end of the
-            # buffer we passed it; the remaining part of the buffer is in
-            # .unused_data. We'll pass that on to the new decompressor.
-            decompressed = b""
-            unused_data = decompressor.unused_data
-            decompressor = BZ2Decompressor()
+            if decompressor.eof: # Reached end of bz2 stream
+                yield decompressed
 
-def iter_pages(bz2_file):
-    """
-    Take a MediaWiki .xml.bz2 file and iterate over wiki pages
+                # The decompressor is dead now, need a new one for the next
+                # stream.  It will generally have hit the bz2 EOF before the end
+                # of the buffer we passed it; the remaining part of the buffer
+                # is in .unused_data. We'll pass that on to the new
+                # decompressor.
+                decompressed = b""
+                unused_data = decompressor.unused_data
+                decompressor = BZ2Decompressor()
 
-    Yields mwxml.Page objects
-    """
-    for decomp_stream in iter_xml_bz2_streams(bz2_file):
-        dump = mwxml.Dump.from_page_xml(StringIO(str(decomp_stream)))
+    def _iter_stream_pages(self, stream):
+        """
+        Take a decompressed stream and iterate over pages
+
+        Takes a stream decompressed from .bz2 as yielded by _iter_bz2_streams.
+        Yields mwxml.Page objects.
+        """
+        dump = mwxml.Dump.from_page_xml(StringIO(str(stream)))
         for page in dump.pages:
             yield page
+
+    def find_page(self, title):
+        seek_index = self.index.get_seek_index(title)
+        stream = next(self._iter_bz2_streams(seek_index))
+        for page in self._iter_stream_pages(stream):
+            if page.title == title:
+                mw = mwparserfromhell.parse(next(page).text)
+                return mw
+        raise RuntimeError("Failed to find page with title '{}'".format(title))
 
 def find_listens(page):
     """
@@ -69,26 +88,17 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("xml_bz2_path")
-    parser.add_argument("index_path")
+    parser.add_argument("index_sqlite_path")
 
     args = parser.parse_args()
 
-    print("Parsing index...")
-    with open(args.index_path) as f:
-        index = WikipediaIndex.from_file(f)
-    print("Done parsing index")
-
+    index = WikipediaIndex.from_sqlite_path(args.index_sqlite_path)
     bz2_file = open(args.xml_bz2_path, "rb")
+    wp_dump = WikipediaDump(bz2_file, index)
 
-    #
-    # TODO hard-coded seek here!
-    # Plan is to use index file from dump to seek to streams to reach pages
-    # without decompressing entire XML
-    #
-
-    bz2_file.seek(1619327860)
-
-    for page in iter_pages(bz2_file):
-        for listen in find_listens(page):
-            print("On page '{}', found file '{}'".format(
-                page.title, listen.get("filename").value))
+    title = "United States general election, 1789"
+    while True:
+        print(title)
+        page = wp_dump.find_page(title)
+        wikilinks = page.filter_wikilinks()
+        title = str(wikilinks[0].title)
