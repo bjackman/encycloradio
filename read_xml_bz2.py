@@ -7,6 +7,7 @@ from io import StringIO
 
 import mwxml # Parses the XML so we can get the MediaWiki source out
 import mwparserfromhell # Parses the actual MediaWiki source
+from progressbar import ProgressBar, UnknownLength
 
 READ_SIZE = 64 * 1024
 
@@ -83,13 +84,15 @@ class WikipediaIndex(object):
         logger = logging.getLogger(cls.__name__)
 
         indices = {}
-        for line in index_file.readlines():
-            try:
-                index, article_id, title = line.strip().split(":", 2)
-            except ValueError:
-                logger.error("Couldn't parse line: '{}'".format(line))
-            else:
-                indices[title] = index
+        with ProgressBar(max_value=UnknownLength) as progress_bar:
+            for i, line in enumerate(index_file):
+                try:
+                    index, article_id, title = line.strip().split(":", 2)
+                except ValueError:
+                    logger.error("Couldn't parse line: '{}'".format(line))
+                else:
+                    indices[title] = index
+                    progress_bar.update(i)
         return cls(indices)
 
 if __name__ == "__main__":

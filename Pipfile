@@ -8,6 +8,7 @@ name = "pypi"
 [packages]
 "7e3da87" = {path = "./python-mwxml", editable = true}
 mwparserfromhell = "*"
+"progressbar2" = "*"
 
 [requires]
 python_version = "3.5"
