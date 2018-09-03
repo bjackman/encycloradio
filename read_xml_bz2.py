@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import logging
+import os
+import pickle
 import sys
 from argparse import ArgumentParser
 from bz2 import BZ2Decompressor
@@ -81,7 +83,9 @@ class WikipediaIndex(object):
 
     @classmethod
     def from_file(cls, index_file):
+        """Parse from a file object"""
         logger = logging.getLogger(cls.__name__)
+        logger.info("Parsing index from file")
 
         indices = {}
         with ProgressBar(max_value=UnknownLength) as progress_bar:
@@ -93,7 +97,40 @@ class WikipediaIndex(object):
                 else:
                     indices[title] = index
                     progress_bar.update(i)
+
+        logger.info("Finished parsing index")
         return cls(indices)
+
+    @classmethod
+    def from_path(cls, path, enable_pickle_cache=True):
+        """
+        Get from a path
+
+        Implements ridiculous caching with "pickle" because I am too rushed to
+        do this with SQLite or something.
+        """
+        logger = logging.getLogger(cls.__name__)
+
+        pickle_path = "{}.pickle".format(path)
+        if enable_pickle_cache and os.path.exists(pickle_path):
+            logger.info("Loading index from pickle cache at {}".format(pickle_path))
+            with open(pickle_path) as f:
+                obj = pickle.load(f)
+            if isinstance(obj, cls):
+                return cls
+            else:
+                logger.error("Pickled object had a weird class: {}"
+                             .formast(obj.__class__))
+
+        with open(path) as f:
+            obj = cls.from_file(f)
+
+        if enable_pickle_cache:
+            logger.info("[Over]writing index pickle cache at {}".format(pickle_path))
+            with open(pickle_path, "wb") as f:
+                pickle.dump(obj, f)
+
+        return obj
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -104,10 +141,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print("Parsing index...")
-    with open(args.index_path) as f:
-        index = WikipediaIndex.from_file(f)
-    print("Done parsing index")
+    index = WikipediaIndex.from_path(args.index_path)
 
     bz2_file = open(args.xml_bz2_path, "rb")
 
