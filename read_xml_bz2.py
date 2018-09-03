@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import logging
 import sys
 from argparse import ArgumentParser
 from bz2 import BZ2Decompressor
@@ -62,11 +63,48 @@ def find_listens(page):
     # Seems like the template names are messy hence .lower and startswith
     return (t for t in mw.filter_templates() if t.name.lower().startswith("listen"))
 
+class WikipediaIndex(object):
+    """
+    Parses the index file that comes along with WP's .xml.bz page DB
+
+    From https://en.wikipedia.org/wiki/Wikipedia:Database_download:
+
+        Developers: for multistream you can get an index file,
+        pages-articles-multistream-index.txt.bz2. The first field of this index
+        is # of bytes to seek into the archive, the second is the article ID,
+        the third the article title. If
+    """
+
+    def __init__(self, seek_indices):
+        self.seek_indices = seek_indices
+
+    @classmethod
+    def from_file(cls, index_file):
+        logger = logging.getLogger(cls.__name__)
+
+        indices = {}
+        for line in index_file.readlines():
+            try:
+                index, article_id, title = line.strip().split(":", 2)
+            except ValueError:
+                logger.error("Couldn't parse line: '{}'".format(line))
+            else:
+                indices[title] = index
+        return cls(indices)
+
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
     parser = ArgumentParser()
     parser.add_argument("xml_bz2_path")
+    parser.add_argument("index_path")
 
     args = parser.parse_args()
+
+    print("Parsing index...")
+    with open(args.index_path) as f:
+        index = WikipediaIndex.from_file(f)
+    print("Done parsing index")
 
     bz2_file = open(args.xml_bz2_path, "rb")
 
