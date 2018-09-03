@@ -64,37 +64,6 @@ def find_listens(page):
     # Seems like the template names are messy hence .lower and startswith
     return (t for t in mw.filter_templates() if t.name.lower().startswith("listen"))
 
-class WikipediaIndex(object):
-    """
-    Parses the index file that comes along with WP's .xml.bz page DB
-
-    From https://en.wikipedia.org/wiki/Wikipedia:Database_download:
-
-        Developers: for multistream you can get an index file,
-        pages-articles-multistream-index.txt.bz2. The first field of this index
-        is # of bytes to seek into the archive, the second is the article ID,
-        the third the article title. If
-    """
-
-    def __init__(self, seek_indices):
-        self.seek_indices = seek_indices
-
-    @classmethod
-    def from_file(cls, index_file):
-        logger = logging.getLogger(cls.__name__)
-
-        indices = {}
-        with ProgressBar(max_value=UnknownLength) as progress_bar:
-            for i, line in enumerate(index_file):
-                try:
-                    index, article_id, title = line.strip().split(":", 2)
-                except ValueError:
-                    logger.error("Couldn't parse line: '{}'".format(line))
-                else:
-                    indices[title] = index
-                    progress_bar.update(i)
-        return cls(indices)
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
