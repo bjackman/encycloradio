@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4e677822b535683d57dac3f49c9ad84282e4d5e924a6647ea4e82ec6d07d7999"
+            "sha256": "336a0401a304e6c88a08ba8cc88e7c36457340252cfe62e3d74499ca71690d7e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,10 +16,6 @@
         ]
     },
     "default": {
-        "7e3da87": {
-            "editable": true,
-            "path": "./python-mwxml"
-        },
         "docopt": {
             "hashes": [
                 "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"
@@ -70,6 +66,14 @@
                 "sha256:f9e27b8ed9228d6ccd235a73ad5686129c8be48a9d4011281f111157a8b7c459"
             ],
             "version": "==0.3.0"
+        },
+        "mwxml": {
+            "hashes": [
+                "sha256:0848df0cf2e293718f554311acf4715bd679f639f4e52cbe47d8206589db1d31",
+                "sha256:9695848b8b6987b6f6addc2a8accba5b2bcbc543702598194e182b508ab568a9"
+            ],
+            "index": "pypi",
+            "version": "==0.3.3"
         },
         "para": {
             "hashes": [

@@ -3,6 +3,7 @@ import logging
 import sys
 from argparse import ArgumentParser
 from bz2 import BZ2Decompressor
+from io import StringIO
 
 import mwxml # Parses the XML so we can get the MediaWiki source out
 import mwparserfromhell # Parses the actual MediaWiki source
@@ -14,8 +15,12 @@ READ_SIZE = 64 * 1024
 
 class WikipediaDump(object):
     def __init__(self, xml_bz2_file, index):
+        self.logger = logging.getLogger(self.__class__.__name__)
         self._bz2_file = xml_bz2_file
         self.index = index
+
+        self._xml_header = self._extract_bz2_stream(0)
+        self._xml_footer = "</mediawiki>"
 
     def _iter_bz2_streams(self, start_index):
         """
@@ -48,6 +53,14 @@ class WikipediaDump(object):
                 unused_data = decompressor.unused_data
                 decompressor = BZ2Decompressor()
 
+    def _extract_bz2_stream(self, start_index):
+        """
+        Extract the stream starting at @start_index bytes into my .bz2 file
+
+        Returns the whole thing at once (they aren't too big).
+        """
+        return next(self._iter_bz2_streams(start_index)).decode("utf-8")
+
     def _iter_stream_pages(self, stream):
         """
         Take a decompressed stream and iterate over pages
@@ -55,13 +68,16 @@ class WikipediaDump(object):
         Takes a stream decompressed from .bz2 as yielded by _iter_bz2_streams.
         Yields mwxml.Page objects.
         """
-        dump = mwxml.Dump.from_page_xml(str(stream))
+        # mw_file = mwtypes.files.concat(self._xml_header, stream, self._xml_footer)
+        mw_file = StringIO(self._xml_header + stream + self._xml_footer)
+        dump = mwxml.Dump.from_file(mw_file)
+
         for page in dump.pages:
             yield page
 
     def find_page(self, title):
         seek_index = self.index.get_seek_index(title)
-        stream = next(self._iter_bz2_streams(seek_index))
+        stream = self._extract_bz2_stream(seek_index)
         for page in self._iter_stream_pages(stream):
             if page.title == title:
                 mw = mwparserfromhell.parse(next(page).text)

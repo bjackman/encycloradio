@@ -6,7 +6,7 @@ name = "pypi"
 [dev-packages]
 
 [packages]
-"7e3da87" = {path = "./python-mwxml", editable = true}
+mwxml = "*"
 mwparserfromhell = "*"
 "progressbar2" = "*"
 
