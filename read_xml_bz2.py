@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import logging
+import random
 import sys
 from argparse import ArgumentParser
 from bz2 import BZ2Decompressor
@@ -112,8 +113,15 @@ if __name__ == "__main__":
     wp_dump = WikipediaDump(bz2_file, index)
 
     title = "United States general election, 1789"
+    # title = "AynRand"
+    # title = "Buddhist"
+    # title = "Philosophy"
     while True:
         print(title)
         page = wp_dump.find_page(title)
+
         wikilinks = page.filter_wikilinks()
-        title = str(wikilinks[0].title)
+        wikilinks = [l for l in wikilinks if ':' not in l.title]
+
+        title = str(wikilinks[random.randint(0, len(wikilinks) - 1)].title)
+        title = title.split('#', 1)[0]
