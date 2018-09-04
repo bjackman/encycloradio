@@ -24,6 +24,8 @@ class WikipediaIndex(object):
     """
 
     def __init__(self, sqlite_connection):
+        self.logger = logging.getLogger(self.__class__.__name__)
+
         self.conn = sqlite_connection
         self.c = self.conn.cursor()
 
@@ -33,15 +35,21 @@ class WikipediaIndex(object):
         """
         Return the byte index to seek to to find the page with a given title
         """
-        results = list(self.c.execute('SELECT seek_index FROM page_seeks '
-                                      'WHERE title = ?', (page_title,)))
-        if len(results) != 1:
-            # Dunno if there will be duplicates, let's wait and see
-            raise RuntimeError("Found {} entries for title '{}'"
-                               .format(len(results), page_title))
+        fmt = 'SELECT seek_index FROM page_seeks WHERE title {} ?'
 
-        [(result,)] = results
-        return int(result)
+        # I haven't properly normalised the titles.
+        # Maybe I can get away with that by falling back to case-insensitive
+        # search... very slow
+        results = list(self.c.execute(fmt.format('='), (page_title,)))
+        if not results:
+            self.logger.debug("Falling back to LIKE for '{}'".format(page_title))
+            results = list(self.c.execute(fmt.format('LIKE'), (page_title,)))
+
+        if not results:
+            raise RuntimeError("No title entry LIKE '{}'".format(page_title))
+
+        return int(results[0][0])
+
 
     @classmethod
     def from_sqlite_path(cls, path):

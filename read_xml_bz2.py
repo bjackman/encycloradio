@@ -79,7 +79,7 @@ class WikipediaDump(object):
         seek_index = self.index.get_seek_index(title)
         stream = self._extract_bz2_stream(seek_index)
         for page in self._iter_stream_pages(stream):
-            if page.title == title:
+            if page.title.lower() == title.lower():
                 mw = mwparserfromhell.parse(next(page).text)
                 return mw
         raise RuntimeError("Failed to find page with title '{}'".format(title))
