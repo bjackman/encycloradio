@@ -3,7 +3,6 @@ import logging
 import sys
 from argparse import ArgumentParser
 from bz2 import BZ2Decompressor
-from io import StringIO
 
 import mwxml # Parses the XML so we can get the MediaWiki source out
 import mwparserfromhell # Parses the actual MediaWiki source
@@ -56,7 +55,7 @@ class WikipediaDump(object):
         Takes a stream decompressed from .bz2 as yielded by _iter_bz2_streams.
         Yields mwxml.Page objects.
         """
-        dump = mwxml.Dump.from_page_xml(StringIO(str(stream)))
+        dump = mwxml.Dump.from_page_xml(str(stream))
         for page in dump.pages:
             yield page
 
