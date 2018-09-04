@@ -82,9 +82,12 @@ class WikipediaDump(object):
         if seek_index is None:
             return None
 
+        def normalize_title(title):
+            return title.lower().replace("_", " ")
+
         stream = self._extract_bz2_stream(seek_index)
         for page in self._iter_stream_pages(stream):
-            if page.title.lower() == title.lower():
+            if normalize_title(page.title) == normalize_title(title):
                 mw = mwparserfromhell.parse(next(page).text)
                 return mw
         raise RuntimeError("Failed to find page with title '{}'".format(title))
