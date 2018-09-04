@@ -46,7 +46,8 @@ class WikipediaIndex(object):
             results = list(self.c.execute(fmt.format('LIKE'), (page_title,)))
 
         if not results:
-            raise RuntimeError("No title entry LIKE '{}'".format(page_title))
+            self.logger.debug("No title entry LIKE '{}'".format(page_title))
+            return None
 
         return int(results[0][0])
 

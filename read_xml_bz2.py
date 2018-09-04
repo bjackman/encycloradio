@@ -78,6 +78,10 @@ class WikipediaDump(object):
 
     def find_page(self, title):
         seek_index = self.index.get_seek_index(title)
+
+        if seek_index is None:
+            return None
+
         stream = self._extract_bz2_stream(seek_index)
         for page in self._iter_stream_pages(stream):
             if page.title.lower() == title.lower():
@@ -116,12 +120,16 @@ if __name__ == "__main__":
     # title = "AynRand"
     # title = "Buddhist"
     # title = "Philosophy"
+    page = wp_dump.find_page(title)
     while True:
         print(title)
-        page = wp_dump.find_page(title)
 
         wikilinks = page.filter_wikilinks()
         wikilinks = [l for l in wikilinks if ':' not in l.title]
 
-        title = str(wikilinks[random.randint(0, len(wikilinks) - 1)].title)
-        title = title.split('#', 1)[0]
+        page = None
+        while page is None:
+            title = str(wikilinks[random.randint(0, len(wikilinks) - 1)].title)
+            title = title.split('#', 1)[0]
+
+            page = wp_dump.find_page(title)
