@@ -35,7 +35,7 @@ class WikipediaIndex(object):
         """
         Return the byte index to seek to to find the page with a given title
         """
-        fmt = 'SELECT seek_index FROM page_seeks WHERE title {} ?'
+        fmt = 'SELECT seek_index FROM pages WHERE title {} ?'
 
         # I haven't properly normalised the titles.
         # Maybe I can get away with that by falling back to case-insensitive
@@ -70,7 +70,7 @@ class WikipediaIndex(object):
 
         # Attempt to create the table now so we fail quickly if it's no worky
         c = cursor
-        c.execute('CREATE TABLE page_seeks (title integer, seek_index text)')
+        c.execute('CREATE TABLE pages (id integer, title integer, seek_index text)')
 
         # Read the index into memory, then parse, _then_ dump into SQLite. Only
         # real reason for this is that we get a pretty progress bar with an ETA
@@ -87,15 +87,15 @@ class WikipediaIndex(object):
             except ValueError:
                 logger.error("Couldn't parse line: '{}'".format(line))
             else:
-                rows.append((title, index))
+                rows.append((article_id, title, index))
 
         logger.info("Dumping index into SQLite DB")
 
         progress_bar = ProgressBar()
-        c.executemany('INSERT INTO page_seeks VALUES (?, ?)',
+        c.executemany('INSERT INTO pages VALUES (?, ?, ?)',
                       progress_bar(rows))
         logger.info("Creating index")
-        c.execute("CREATE INDEX tag_titles_idx ON page_seeks (title)")
+        c.execute("CREATE INDEX tag_titles_idx ON pages (title)")
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
