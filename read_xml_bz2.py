@@ -3,8 +3,8 @@ import logging
 import random
 import sys
 from argparse import ArgumentParser
-from bz2 import BZ2Decompressor
-from io import StringIO
+from bz2 import BZ2Decompressor, BZ2File
+from io import StringIO, BytesIO
 
 import mwxml # Parses the XML so we can get the MediaWiki source out
 import mwparserfromhell # Parses the actual MediaWiki source
@@ -21,7 +21,7 @@ class WikipediaDump(object):
         self.index = index
 
         self._xml_header = self._extract_bz2_stream(0)
-        self._xml_footer = "</mediawiki>"
+        self._xml_footer = b"</mediawiki>"
 
     def _iter_bz2_streams(self, start_index):
         """
@@ -60,7 +60,7 @@ class WikipediaDump(object):
 
         Returns the whole thing at once (they aren't too big).
         """
-        return next(self._iter_bz2_streams(start_index)).decode("utf-8")
+        return next(self._iter_bz2_streams(start_index))
 
     def _iter_stream_pages(self, stream):
         """
@@ -70,9 +70,22 @@ class WikipediaDump(object):
         Yields mwxml.Page objects.
         """
         # mw_file = mwtypes.files.concat(self._xml_header, stream, self._xml_footer)
-        mw_file = StringIO(self._xml_header + stream + self._xml_footer)
+        mw_file = BytesIO(self._xml_header + stream + self._xml_footer)
+        print(repr(mw_file.getvalue()))
+        exit(0)
         dump = mwxml.Dump.from_file(mw_file)
 
+        for page in dump.pages:
+            yield page
+
+    def _iter_pages(self):
+        """
+        Iterate over every page in my .bz2 file
+
+        Yields mwxml.Page objects.
+        """
+        self._bz2_file.seek(0)
+        dump = mwxml.Dump.from_file(BZ2File(self._bz2_file))
         for page in dump.pages:
             yield page
 
@@ -121,20 +134,26 @@ if __name__ == "__main__":
     bz2_file = open(args.xml_bz2_path, "rb")
     wp_dump = WikipediaDump(bz2_file, index)
 
-    title = "United States general election, 1789"
-    # title = "AynRand"
-    # title = "Buddhist"
-    # title = "Philosophy"
-    page = wp_dump.find_page(title)
-    while True:
-        print(title)
+    streams = wp_dump._iter_bz2_streams(0)
+    next(streams) # Skip over initial header stuff
 
-        wikilinks = page.filter_wikilinks()
-        wikilinks = [l for l in wikilinks if ':' not in l.title]
+    num_pages = 0
+    pages_with_listen = 0
+    for page in wp_dump._iter_pages():
+        num_pages += 1
+        listens = find_listens(page)
+        for listen in listens:
+            filename = listen.get("filename").value.strip()
+            # Not sure why mwparserfromhell gives me "\n" values on the
+            # end. Strip em off.
+            # TODO fix mwparserfromhell.
+            if filename.endswith("\\n"):
+                filename = filename[:-2]
+            index_entry = index.find_page(page.title).id
+            if not index_entry:
+                logging.warning("Couldn't find '{}' in index, skipping'"
+                                .format(page.title))
+            index.add_listen(, filename)
 
-        page = None
-        while page is None:
-            title = str(wikilinks[random.randint(0, len(wikilinks) - 1)].title)
-            title = title.split('#', 1)[0]
-
-            page = wp_dump.find_page(title)
+        if any(listens):
+            pages_with_listen += 1
