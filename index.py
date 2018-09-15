@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 from argparse import ArgumentParser
+from collections import namedtuple
 
 from progressbar import ProgressBar, UnknownLength
 
@@ -10,6 +11,8 @@ Encapsulates the index provided with wikipedia dumps.
 Run this as an executable script to convert the file into an SQLite DB; then you
 can instantiate the provided class by passing that DB.
 """
+
+IndexPageEntry = namedtuple("IndexPageEntry", ["id", "title", "seek_index"])
 
 class WikipediaIndex(object):
     """
@@ -35,11 +38,16 @@ class WikipediaIndex(object):
         """
         Return the byte index to seek to to find the page with a given title
         """
-        fmt = 'SELECT seek_index FROM pages WHERE title {} ?'
+        return self.find_page(page_title).seek_index
 
+    def find_page(self, page_title):
+        """
+        Look up a page by title, return a IndexPageEntry
+        """
         # I haven't properly normalised the titles.
         # Maybe I can get away with that by falling back to case-insensitive
         # search... very slow
+        fmt = 'SELECT id, title, seek_index FROM pages WHERE title {} ?'
         results = list(self.c.execute(fmt.format('='), (page_title,)))
         if not results:
             self.logger.debug("Falling back to LIKE for '{}'".format(page_title))
@@ -49,8 +57,18 @@ class WikipediaIndex(object):
             self.logger.debug("No title entry LIKE '{}'".format(page_title))
             return None
 
-        return int(results[0][0])
+        if len(results) > 1:
+            self.logger.warning("Found {} entries for '{}'".format(len(results),
+                                                                   title))
+        result = results[0]
+        page_id, title, seek_index = result
+        return IndexPageEntry(page_id, title, seek_index)
 
+    def add_listen(self, page_id, filename):
+        """Record that a page has a sound file associated with it"""
+        self.logger.info("Adding listen {} - {}".format(page_id, filename))
+        self.c.execute('INSERT INTO listens VALUES (?, ?)', (page_id, filename))
+        self.conn.commit()
 
     @classmethod
     def from_sqlite_path(cls, path):
@@ -68,9 +86,10 @@ class WikipediaIndex(object):
         """
         logger = logging.getLogger(cls.__name__)
 
-        # Attempt to create the table now so we fail quickly if it's no worky
+        # Attempt to create the tables now so we fail quickly if it's no worky
         c = cursor
         c.execute('CREATE TABLE pages (id integer, title text, seek_index integer)')
+        c.execute('CREATE TABLE listens (page_id integer, title text)')
 
         # Read the index into memory, then parse, _then_ dump into SQLite. Only
         # real reason for this is that we get a pretty progress bar with an ETA
