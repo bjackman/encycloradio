@@ -70,7 +70,7 @@ class WikipediaIndex(object):
 
         # Attempt to create the table now so we fail quickly if it's no worky
         c = cursor
-        c.execute('CREATE TABLE pages (id integer, title integer, seek_index text)')
+        c.execute('CREATE TABLE pages (id integer, title text, seek_index integer)')
 
         # Read the index into memory, then parse, _then_ dump into SQLite. Only
         # real reason for this is that we get a pretty progress bar with an ETA
