@@ -20,92 +20,16 @@ class WikipediaDump(object):
         self._bz2_file = xml_bz2_file
         self.index = index
 
-        self._xml_header = self._extract_bz2_stream(0)
-        self._xml_footer = b"</mediawiki>"
-
-    def _iter_bz2_streams(self, start_index):
-        """
-        Iterate over the streams in my .bz2 file, starting at start_index
-
-        Yields each stream decompressed in its entirety. This is useful because
-        Wikipedia XML dumps are enormous .bz2 files but divided into individual
-        streams that can be decompressed separately.
-        """
-        self._bz2_file.seek(start_index)
-
-        decompressor = BZ2Decompressor()
-        unused_data = b""
-        decompressed = b""
-
-        while True:
-            compressed = unused_data + self._bz2_file.read(READ_SIZE)
-            unused_data = b""
-            decompressed += decompressor.decompress(compressed)
-
-            if decompressor.eof: # Reached end of bz2 stream
-                yield decompressed
-
-                # The decompressor is dead now, need a new one for the next
-                # stream.  It will generally have hit the bz2 EOF before the end
-                # of the buffer we passed it; the remaining part of the buffer
-                # is in .unused_data. We'll pass that on to the new
-                # decompressor.
-                decompressed = b""
-                unused_data = decompressor.unused_data
-                decompressor = BZ2Decompressor()
-
-    def _extract_bz2_stream(self, start_index):
-        """
-        Extract the stream starting at @start_index bytes into my .bz2 file
-
-        Returns the whole thing at once (they aren't too big).
-        """
-        return next(self._iter_bz2_streams(start_index))
-
-    def _iter_stream_pages(self, stream):
-        """
-        Take a decompressed stream and iterate over pages
-
-        Takes a stream decompressed from .bz2 as yielded by _iter_bz2_streams.
-        Yields mwxml.Page objects.
-        """
-        # mw_file = mwtypes.files.concat(self._xml_header, stream, self._xml_footer)
-        mw_file = BytesIO(self._xml_header + stream + self._xml_footer)
-        print(repr(mw_file.getvalue()))
-        exit(0)
-        dump = mwxml.Dump.from_file(mw_file)
-
-        for page in dump.pages:
-            yield page
-
     def _iter_pages(self):
         """
         Iterate over every page in my .bz2 file
 
         Yields mwxml.Page objects.
         """
-        self._bz2_file.seek(0)
+        # self._bz2_file.seek(0)
         dump = mwxml.Dump.from_file(BZ2File(self._bz2_file))
         for page in dump.pages:
             yield page
-
-    def find_page(self, title):
-        # Normalize title
-        title = title.replace("_", " ")
-        title = title[0].upper() + title[1:]
-
-        seek_index = self.index.get_seek_index(title)
-
-        if seek_index is None:
-            return None
-
-        stream = self._extract_bz2_stream(seek_index)
-        for page in self._iter_stream_pages(stream):
-            if page.title == title:
-                mw = mwparserfromhell.parse(next(page).text)
-                return mw
-        raise RuntimeError("Failed to find page with title '{}'".format(title))
-
 
 def find_listens(page):
     """
@@ -134,9 +58,6 @@ if __name__ == "__main__":
     bz2_file = open(args.xml_bz2_path, "rb")
     wp_dump = WikipediaDump(bz2_file, index)
 
-    streams = wp_dump._iter_bz2_streams(0)
-    next(streams) # Skip over initial header stuff
-
     num_pages = 0
     pages_with_listen = 0
     for page in wp_dump._iter_pages():
@@ -149,11 +70,12 @@ if __name__ == "__main__":
             # TODO fix mwparserfromhell.
             if filename.endswith("\\n"):
                 filename = filename[:-2]
-            index_entry = index.find_page(page.title).id
+            index_entry = index.find_page(page.title)
             if not index_entry:
                 logging.warning("Couldn't find '{}' in index, skipping'"
                                 .format(page.title))
-            index.add_listen(, filename)
+            else:
+                index.add_listen(index_entry.id, filename)
 
         if any(listens):
             pages_with_listen += 1
