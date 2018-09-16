@@ -1,0 +1,11 @@
+/* svg rect:hover { */
+/*     fill: orange; */
+/* } */
+
+svg text {
+    pointer-events: none;
+}
+
+/* svg rect { */
+/*     transition: all 0.15s; */
+/* } */
