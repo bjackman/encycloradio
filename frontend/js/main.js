@@ -89,3 +89,40 @@ let vis = new function() {
         .on('tick', this.onSimTick)
         .on('end', this.onSimEnd);
 }
+
+let wpWalker = new function() {
+    this.urlBase = 'https://en.wikipedia.org/w/api.php';
+
+    this.request = function(args) {
+        args = new Map(Object.entries(args)); // Fuck this fucking language
+        let parts = []
+        for (let entry of args.entries()) {
+            parts.push(entry.join('='))
+        }
+        let queryString = parts.join('&')
+        let url = `${this.urlBase}?${queryString}`;
+        console.log(url);
+        return new Request(url, {method: "GET",
+                                 mode: "cors",
+                                 headers: {"Origin": "http://localhost:8080",
+                                           "Content-Type": "application/json"}});
+    }
+
+    this.getPagesWithListens = function() {
+        return fetch(this.request({
+            origin: "*",
+            action: "query",
+            format: "json",
+            formatversion: "2",
+            generator: "embeddedin",
+            geititle: "Template:Listen",
+            prop: "templates",
+            tltemplates: "Template:Listen",
+            tllimit: 20
+        }));
+    }
+}
+
+// Jesus JavaScript is a pain.. OK try this: wpWalker.getPagesWithListens().then(response => { console.log(response.json().then(console.log))} )
+
+// Then we're going to end up wanting to call something like this:  https://en.wikipedia.org/w/api.php?action=parse&format=json&page=The_Star-Spangled_Banner&prop=parsetree&formatversion=2
