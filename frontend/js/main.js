@@ -39,7 +39,6 @@ let vis = new function() {
         .attr("stroke", "gray");
 
     this.onSimTick = _ => { // Use arrow function so 'this' isn't weird
-        console.log(this);
         this.node
             .attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; });
@@ -52,13 +51,13 @@ let vis = new function() {
     }
 
     this.restartSim = function() {
-        this.simulation.nodes(graph.nodes);
-        this.simulation.force('link').links(graph.links);
+        this.simulation.nodes(this.graph.nodes);
+        this.simulation.force('link').links(this.graph.links);
         this.simulation.alpha(0.5).restart();
     }
 
     this.done = false;
-    this.onSimEnd = function() {
+    this.onSimEnd = _ => {
         console.log('end');
 
         if (this.done) return;
@@ -67,17 +66,17 @@ let vis = new function() {
         this.graph.nodes.push({id: "8"});
         this.graph.links.push({source: 0, target: 8});
 
-        this.node = node.data(this.graph.nodes, d => { return d.id })
+        this.node = this.node.data(this.graph.nodes, d => { return d.id })
             .enter().append("circle")
             .attr("r", 5)
-            .merge(node);
+            .merge(this.node);
 
         this.link = this.link.data(this.graph.links, d => { [d.source.id, d.target.id].join("-") })
         this.link.exit().remove()
-        this.link = link.enter()
+        this.link = this.link.enter()
             .append("line")
             .attr("stroke", "gray")
-            .merge(link);
+            .merge(this.link);
 
         this.restartSim();
     }
