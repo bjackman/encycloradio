@@ -1,3 +1,5 @@
+"use strict";
+
 //Width and height
 let w = 600;
 let h = 250;
@@ -58,8 +60,6 @@ let vis = new function() {
 
     this.done = false;
     this.onSimEnd = _ => {
-        console.log('end');
-
         if (this.done) return;
         this.done = true;
 
@@ -90,39 +90,97 @@ let vis = new function() {
         .on('end', this.onSimEnd);
 }
 
-let wpWalker = new function() {
+// Class to represent a wikipedia page
+let Page = function(pageDesc, wikipedia) {
+    this.title = pageDesc.title;
+    this.wikipedia = wikipedia;
+    this._parseTreePromise = null;
+}
+// Promise to get the parse tree of the page as an XMLDocument.
+Page.prototype.getParseTree = function() {
+    console.log("getParseTree");
+    if (!this._parseTreePromise) {
+        this._parseTreePromise = this.wikipedia.getParseTree(this.title);
+    }
+    return this._parseTreePromise
+        .then(result => new DOMParser().parseFromString(result.parse.parsetree, "text/xml"));
+}
+Page.prototype.getListens = function() {
+    console.log("getListens");
+    return this.getParseTree()
+        .then(xmlDoc => {
+            console.log("got parse tree");
+            let ret = []
+            let xpathResult = xmlDoc.evaluate("./root/template", xmlDoc);
+            console.log(xpathResult);
+            for (let template = xpathResult.iterateNext(); template; template = xpathResult.iterateNext()) {
+                console.log(template);
+                ret.push(template);
+            }
+            return ret;
+        });
+}
+
+let wikipedia = new function() {
     this.urlBase = 'https://en.wikipedia.org/w/api.php';
 
+    // Return a request object. Pass in an object with the key/val pairs to put
+    // in the query string. The ones that are always required are inserted for you.
     this.request = function(args) {
         args = new Map(Object.entries(args)); // Fuck this fucking language
+        args.set("origin", "*"); // Required for CORS
+        args.set("format", "json")
+        args.set("formatversion", "2") // Required for sensible return format
         let parts = []
         for (let entry of args.entries()) {
             parts.push(entry.join('='))
         }
         let queryString = parts.join('&')
         let url = `${this.urlBase}?${queryString}`;
-        console.log(url);
         return new Request(url, {method: "GET",
                                  mode: "cors",
                                  headers: {"Origin": "http://localhost:8080",
                                            "Content-Type": "application/json"}});
     }
 
+    // Return a Promise that resolves to an array of Page objects, which all
+    // contain the Listen wikipedia template in their body.
     this.getPagesWithListens = function() {
         return fetch(this.request({
-            origin: "*",
             action: "query",
-            format: "json",
-            formatversion: "2",
             generator: "embeddedin",
             geititle: "Template:Listen",
             prop: "templates",
             tltemplates: "Template:Listen",
             tllimit: 20
-        }));
+        }))
+            .then(response => response.json())
+            .then(response => {
+                let ret = [];
+                for (let pageDesc of response.query.pages) {
+                    ret.push(new Page(pageDesc, this));
+                }
+                return ret;
+            });
+    }
+
+    // Get the parse tree for a page with a given title. You probably don't want
+    // to call this directly, use Page.getParseTree instead
+    this.getParseTree = function(title) {
+        return fetch(this.request({
+            action: "parse",
+            page: title,
+            prop: "parsetree"
+        })).then(response => response.json())
     }
 }
 
-// Jesus JavaScript is a pain.. OK try this: wpWalker.getPagesWithListens().then(response => { console.log(response.json().then(console.log))} )
+wikipedia.getPagesWithListens()
+    .then(pages => {
+        return pages[0].getListens()
+    })
+    .then(console.log);
+
+// Jesus JavaScript is a pain.. OK try this: wikipedia.getPagesWithListens().then(response => { console.log(response.json().then(console.log))} )
 
 // Then we're going to end up wanting to call something like this:  https://en.wikipedia.org/w/api.php?action=parse&format=json&page=The_Star-Spangled_Banner&prop=parsetree&formatversion=2
