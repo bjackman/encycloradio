@@ -98,24 +98,59 @@ let Page = function(pageDesc, wikipedia) {
 }
 // Promise to get the parse tree of the page as an XMLDocument.
 Page.prototype.getParseTree = function() {
-    console.log("getParseTree");
     if (!this._parseTreePromise) {
         this._parseTreePromise = this.wikipedia.getParseTree(this.title);
     }
     return this._parseTreePromise
-        .then(result => new DOMParser().parseFromString(result.parse.parsetree, "text/xml"));
+        .then(result => {
+            return new DOMParser().parseFromString(result.parse.parsetree, "text/xml")
+        });
 }
+// Promise to get an array the parse tree elements for the Listen templates
 Page.prototype.getListens = function() {
-    console.log("getListens");
     return this.getParseTree()
         .then(xmlDoc => {
-            console.log("got parse tree");
             let ret = []
-            let xpathResult = xmlDoc.evaluate("./root/template", xmlDoc);
+            // This XPath expression finds template elements, then finds title
+            // sub-elements and checks if their text contains "listen"
+            // (converting to lowercase first).
+            // Then it finds part sub-elements, which have a name sub-element
+            // whose text contains "filename", then it takes the text of the value
+            // sub-element.
+            //
+            // Basically we're finding the "foo.ogg" amd "bar.ogg" in template
+            // elements that look like this one:
+            //
+            // <template lineStart="1">
+            //    <title>listen</title>
+            //    <part>
+            //       <name>something</name>
+            //       <equals>=</equals>
+            //       <value>else</value>
+            //    </part>
+            //    <part>
+            //       <name>filename</name>
+            //       <equals>=</equals>
+            //       <value>foo.ogg</value>
+            //    </part>
+            //    <part>
+            //       <name>filename2</name>
+            //       <equals>=</equals>
+            //       <value>bar.ogg</value>
+            //    </part>
+            //    <part>
+            // </template>
+
+            let xpath = `
+                //template[contains(translate(./title/text(), "LISTEN", "listen"), "listen")]
+                    /part[contains(translate(name/text(), "FILENAME", "filename"), "filename")]
+                        /value
+                            /text()
+            `;
+            let xpathResult = xmlDoc.evaluate(xpath, xmlDoc);
             console.log(xpathResult);
-            for (let template = xpathResult.iterateNext(); template; template = xpathResult.iterateNext()) {
-                console.log(template);
-                ret.push(template);
+            for (let filename = xpathResult.iterateNext(); filename; filename = xpathResult.iterateNext()) {
+                ret.push(filename);
             }
             return ret;
         });
