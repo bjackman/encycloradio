@@ -235,14 +235,6 @@ wikipedia.getPagesWithListens()
     })
     .then(filenames => {
         vis.addListen(wikipedia.getUrlForFilename(filenames[0]))
-
-        d3.select("body")
-            .selectAll("audio")
-            .data(filenames)
-            .enter()
-            .append("audio")
-            .attr("controls", "")
-            .attr("src", d => wikipedia.getUrlForFilename(d));
     });
 
 // Enable access from console when using webpack, for debugging
