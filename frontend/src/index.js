@@ -9,18 +9,8 @@ let h = 250;
 
 let vis = new function() {
     this.graph = {
-        nodes: [{id: "0"}, {id: "1"}, {id: "2"}, {id: "3"},
-                {id: "4"}, {id: "5"}, {id: "6"}, {id: "7"}],
-        links: [
-            {source: 0, target: 1},
-            {source: 0, target: 2},
-            {source: 0, target: 3},
-            {source: 1, target: 6},
-            {source: 3, target: 4},
-            {source: 3, target: 7},
-            {source: 4, target: 5},
-            {source: 4, target: 7}
-        ]
+        nodes: [],
+        links: []
     };
 
     this.svg = d3.select("body")
@@ -31,17 +21,12 @@ let vis = new function() {
     this.node = this.svg.append("g")
         .attr("class", "nodes")
         .selectAll("circle")
-        .data(this.graph.nodes)
-        .enter().append("circle")
-        .attr("r", 5);
+        .data(this.graph.nodes);
 
     this.link = this.svg.append("g")
         .attr("class", "links")
         .selectAll("line")
-        .data(this.graph.links)
-        .enter()
-        .append("line")
-        .attr("stroke", "gray");
+        .data(this.graph.links);
 
     this.onSimTick = _ => { // Use arrow function so 'this' isn't weird
         this.node
@@ -91,9 +76,24 @@ let vis = new function() {
         .alphaMin(0.05)
         .on('tick', this.onSimTick)
         .on('end', this.onSimEnd);
-}
 
-window.vis = vis; // Enable access from console when using webpack, for debugging
+    this.addListen = function(url) {
+        let datum = {
+            url: url,
+            audioElement: d3.select("body").append("audio").attr("src", url)
+        }
+
+        this.graph.nodes.push(datum);
+
+        this.node = this.node.data(this.graph.nodes, d => d.url )
+            .enter().append("circle")
+            .attr("r", 5)
+            .on("click", d => d.audioElement.node().play())
+            .merge(this.node);
+
+        this.restartSim();
+    }
+}
 
 // Class to represent a wikipedia page
 let Page = function(pageDesc, wikipedia) {
@@ -234,12 +234,7 @@ wikipedia.getPagesWithListens()
         return pages[0].getListenFilenames()
     })
     .then(filenames => {
-        let urls = []
-        for (let filename of filenames) {
-            let url = wikipedia.getUrlForFilename(filename);
-            console.log(url);
-            urls.push(url)
-        }
+        vis.addListen(wikipedia.getUrlForFilename(filenames[0]))
 
         d3.select("body")
             .selectAll("audio")
