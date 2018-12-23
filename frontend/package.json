@@ -1,0 +1,20 @@
+{
+    "name": "encycloradio",
+    "version": "1.0.0",
+    "description": "Me playing with Wikidia",
+    "private": true,
+    "main": "js/main.js",
+    "scripts": {
+        "test": "echo lol do u think i wrote tests for this thing && exit 1"
+    },
+    "author": "Brendan Jackman",
+    "license": "UNLICENSED",
+    "repository": "https://github.com/bjackman/encycloradio.git",
+    "devDependencies": {
+        "webpack": "^4.28.2",
+        "webpack-cli": "^3.1.2"
+    },
+    "dependencies": {
+        "md5": "^2.2.1"
+    }
+}

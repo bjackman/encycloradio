@@ -1,5 +1,7 @@
 "use strict";
 
+import md5 from "md5";
+
 //Width and height
 let w = 600;
 let h = 250;
