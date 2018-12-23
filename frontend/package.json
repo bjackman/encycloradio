@@ -5,7 +5,8 @@
     "private": true,
     "main": "js/main.js",
     "scripts": {
-        "test": "echo lol do u think i wrote tests for this thing && exit 1"
+        "test": "echo lol do u think i wrote tests for this thing && exit 1",
+        "build": "webpack"
     },
     "author": "Brendan Jackman",
     "license": "UNLICENSED",
