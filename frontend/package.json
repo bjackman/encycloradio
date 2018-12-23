@@ -6,14 +6,16 @@
     "main": "js/main.js",
     "scripts": {
         "test": "echo lol do u think i wrote tests for this thing && exit 1",
-        "build": "webpack"
+        "build": "webpack",
+        "start": "webpack-dev-server --open"
     },
     "author": "Brendan Jackman",
     "license": "UNLICENSED",
     "repository": "https://github.com/bjackman/encycloradio.git",
     "devDependencies": {
         "webpack": "^4.28.2",
-        "webpack-cli": "^3.1.2"
+        "webpack-cli": "^3.1.2",
+        "webpack-dev-server": "^3.1.13"
     },
     "dependencies": {
         "md5": "^2.2.1",
