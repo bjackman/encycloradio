@@ -93,6 +93,8 @@ let vis = new function() {
         .on('end', this.onSimEnd);
 }
 
+window.vis = vis; // Enable access from console when using webpack, for debugging
+
 // Class to represent a wikipedia page
 let Page = function(pageDesc, wikipedia) {
     this.title = pageDesc.title;
@@ -226,6 +228,8 @@ let wikipedia = new function() {
         return `${baseUrl}/${md5sum[0]}/${md5sum.slice(0, 2)}/${encodeURIComponent(normalizedFilename)}`
     }
 }
+
+window.wikipedia = wikipedia; // Enable access from console when using webpack, for debugging
 
 wikipedia.getPagesWithListens()
     .then(pages => {
