@@ -109,8 +109,8 @@ Page.prototype.getParseTree = function() {
             return new DOMParser().parseFromString(result.parse.parsetree, "text/xml")
         });
 }
-// Promise to get an array the parse tree elements for the Listen templates
-Page.prototype.getListens = function() {
+// Promise to get an array of the filenames for the Listen templates in the page
+Page.prototype.getListenFilenames = function() {
     return this.getParseTree()
         .then(xmlDoc => {
             let ret = []
@@ -151,9 +151,8 @@ Page.prototype.getListens = function() {
                             /text()
             `;
             let xpathResult = xmlDoc.evaluate(xpath, xmlDoc);
-            console.log(xpathResult);
             for (let filename = xpathResult.iterateNext(); filename; filename = xpathResult.iterateNext()) {
-                ret.push(filename);
+                ret.push(filename.textContent);
             }
             return ret;
         });
@@ -211,13 +210,32 @@ let wikipedia = new function() {
             prop: "parsetree"
         })).then(response => response.json())
     }
+
+    // Given the filename of a Wikipedia asset as it would be used in the Wiki
+    // text, get the URL it can be retrieved from.
+    this.getUrlForFilename = function(filename) {
+        // There's probably further normalisation to do here... not sure what it
+        // is. I'm sure I saw that info somewhere once.
+        let normalizedFilename = filename.replace(new RegExp(" ", "g"), "_")
+        // Wikipedia enables this option, so we have to do some md5
+        // jiggery-pokery:
+        // https://www.mediawiki.org/wiki/Manual:$wgHashedUploadDirectory TODO
+        let md5sum = md5(normalizedFilename);
+        // Not exactly sure what the base URL should be, but this one seems to work...
+        let baseUrl = "https://upload.wikimedia.org/wikipedia/commons"
+        return `${baseUrl}/${md5sum[0]}/${md5sum.slice(0, 2)}/${encodeURIComponent(normalizedFilename)}`
+    }
 }
 
 wikipedia.getPagesWithListens()
     .then(pages => {
-        return pages[0].getListens()
+        return pages[0].getListenFilenames()
     })
-    .then(console.log);
+    .then(filenames => {
+        for (let filename of filenames) {
+            console.log(wikipedia.getUrlForFilename(filename));
+        }
+    });
 
 // Jesus JavaScript is a pain.. OK try this: wikipedia.getPagesWithListens().then(response => { console.log(response.json().then(console.log))} )
 
