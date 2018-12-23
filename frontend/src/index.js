@@ -229,8 +229,6 @@ let wikipedia = new function() {
     }
 }
 
-window.wikipedia = wikipedia; // Enable access from console when using webpack, for debugging
-
 wikipedia.getPagesWithListens()
     .then(pages => {
         return pages[0].getListenFilenames()
@@ -252,6 +250,7 @@ wikipedia.getPagesWithListens()
             .attr("src", d => wikipedia.getUrlForFilename(d));
     });
 
-// Jesus JavaScript is a pain.. OK try this: wikipedia.getPagesWithListens().then(response => { console.log(response.json().then(console.log))} )
-
-// Then we're going to end up wanting to call something like this:  https://en.wikipedia.org/w/api.php?action=parse&format=json&page=The_Star-Spangled_Banner&prop=parsetree&formatversion=2
+// Enable access from console when using webpack, for debugging
+window.wikipedia = wikipedia;
+window.vis = vis;
+window.d3 = d3;
