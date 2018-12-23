@@ -232,9 +232,20 @@ wikipedia.getPagesWithListens()
         return pages[0].getListenFilenames()
     })
     .then(filenames => {
+        let urls = []
         for (let filename of filenames) {
-            console.log(wikipedia.getUrlForFilename(filename));
+            let url = wikipedia.getUrlForFilename(filename);
+            console.log(url);
+            urls.push(url)
         }
+
+        d3.select("body")
+            .selectAll("audio")
+            .data(filenames)
+            .enter()
+            .append("audio")
+            .attr("controls", "")
+            .attr("src", d => wikipedia.getUrlForFilename(d));
     });
 
 // Jesus JavaScript is a pain.. OK try this: wikipedia.getPagesWithListens().then(response => { console.log(response.json().then(console.log))} )
