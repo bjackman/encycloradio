@@ -61,28 +61,28 @@ let vis = new function() {
         this.simulation.alpha(0.5).restart();
     }
 
-    this.done = false;
-    this.onSimEnd = _ => {
-        if (this.done) return;
-        this.done = true;
+    // this.done = false;
+    // this.onSimEnd = _ => {
+    //     if (this.done) return;
+    //     this.done = true;
 
-        this.graph.nodes.push({id: "8"});
-        this.graph.links.push({source: 0, target: 8});
+    //     this.graph.nodes.push({id: "8"});
+    //     this.graph.links.push({source: 0, target: 8});
 
-        this.node = this.node.data(this.graph.nodes, d => { return d.id })
-            .enter().append("circle")
-            .attr("r", 5)
-            .merge(this.node);
+    //     this.node = this.node.data(this.graph.nodes, d => { return d.id })
+    //         .enter().append("circle")
+    //         .attr("r", 5)
+    //         .merge(this.node);
 
-        this.link = this.link.data(this.graph.links, d => { [d.source.id, d.target.id].join("-") })
-        this.link.exit().remove()
-        this.link = this.link.enter()
-            .append("line")
-            .attr("stroke", "gray")
-            .merge(this.link);
+    //     this.link = this.link.data(this.graph.links, d => { [d.source.id, d.target.id].join("-") })
+    //     this.link.exit().remove()
+    //     this.link = this.link.enter()
+    //         .append("line")
+    //         .attr("stroke", "gray")
+    //         .merge(this.link);
 
-        this.restartSim();
-    }
+    //     this.restartSim();
+    // }
 
     this.simulation = d3.forceSimulation(this.graph.nodes)
         .force("charge", d3.forceManyBody())
