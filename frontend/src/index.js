@@ -1,6 +1,7 @@
 "use strict";
 
 import md5 from "md5";
+import * as d3 from "d3";
 
 //Width and height
 let w = 600;
