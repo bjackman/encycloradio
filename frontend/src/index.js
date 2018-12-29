@@ -8,6 +8,7 @@ let w = 600;
 let h = 250;
 
 let ROOT_3 = 1.73205080757 // Square root of 3
+let ROOT_2 = 1.41421356237 // Square root of 2
 
 let vis = new function() {
     this.graph = {
@@ -66,6 +67,12 @@ let vis = new function() {
                 [+radius, 0]]
     }
 
+    // Same as above, but it's a square.
+    this._getSquarePoints = function(radius) {
+        let d = radius * (1 / ROOT_2);
+        return [[-d, -d], [-d, +d], [+d, +d], [+d, -d]]
+    }
+
     this.addListen = function(url) {
         let datum = {
             url: url,
@@ -77,16 +84,28 @@ let vis = new function() {
         this.node = this.node.data(this.graph.nodes, d => d.url )
             .enter().append("g")
             .classed("node", true)
+            .classed("playing", false)
             .on("click", d => d.audioElement.play());
 
+        let NODE_RADIUS = 25;
         this.node
             .append("circle")
-            .attr("r", 25)
+            .attr("r", NODE_RADIUS)
             .merge(this.node);
+
+        // Add two polygons - one for the play button and one for the stop
+        // button. We'll use CSS to determine which one is visible.
+        let BUTTON_RADIUS = Math.floor(NODE_RADIUS * 0.8);
+        this.node
+            .append("polygon")
+            .classed("playbutton", true)
+            .attr("points", this._getTrianglePoints(BUTTON_RADIUS).map(xy => xy.join(",")).join(" "))
+            .style("fill", "white");
 
         this.node
             .append("polygon")
-            .attr("points", this._getTrianglePoints(18).map(xy => xy.join(",")).join(" "))
+            .classed("stopbutton", true)
+            .attr("points", this._getSquarePoints(BUTTON_RADIUS).map(xy => xy.join(",")).join(" "))
             .style("fill", "white");
 
         this.restartSim();
