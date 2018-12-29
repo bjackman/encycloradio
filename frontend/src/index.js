@@ -7,6 +7,8 @@ import * as d3 from "d3";
 let w = 600;
 let h = 250;
 
+let ROOT_3 = 1.73205080757 // Square root of 3
+
 let vis = new function() {
     this.graph = {
         nodes: [],
@@ -20,7 +22,7 @@ let vis = new function() {
 
     this.node = this.svg.append("g")
         .attr("class", "nodes")
-        .selectAll("circle")
+        .selectAll("g.node")
         .data(this.graph.nodes);
 
     this.link = this.svg.append("g")
@@ -30,8 +32,7 @@ let vis = new function() {
 
     this.onSimTick = _ => { // Use arrow function so 'this' isn't weird
         this.node
-            .attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; });
+            .attr("transform", d => `translate(${d.x}, ${d.y})`)
 
         this.link
             .attr("x1", function(d) { return d.source.x; })
@@ -46,29 +47,6 @@ let vis = new function() {
         this.simulation.alpha(0.5).restart();
     }
 
-    // this.done = false;
-    // this.onSimEnd = _ => {
-    //     if (this.done) return;
-    //     this.done = true;
-
-    //     this.graph.nodes.push({id: "8"});
-    //     this.graph.links.push({source: 0, target: 8});
-
-    //     this.node = this.node.data(this.graph.nodes, d => { return d.id })
-    //         .enter().append("circle")
-    //         .attr("r", 5)
-    //         .merge(this.node);
-
-    //     this.link = this.link.data(this.graph.links, d => { [d.source.id, d.target.id].join("-") })
-    //     this.link.exit().remove()
-    //     this.link = this.link.enter()
-    //         .append("line")
-    //         .attr("stroke", "gray")
-    //         .merge(this.link);
-
-    //     this.restartSim();
-    // }
-
     this.simulation = d3.forceSimulation(this.graph.nodes)
         .force("charge", d3.forceManyBody())
         .force("link", d3.forceLink(this.graph.links))
@@ -77,19 +55,39 @@ let vis = new function() {
         .on('tick', this.onSimTick)
         .on('end', this.onSimEnd);
 
+    // Given the radius of the circumscribed circle, return the points of an
+    // equilateral triangle centred on 0,0 with a vertical left side (so it
+    // "points right" like a play button). Array of [x,y] pairs.
+    // By what sorcery is this computed? Don't worry about it, I got an A* in
+    // GCSE maths. Barely took me half an hour and a whole page of diagrams.
+    this._getTrianglePoints = function(radius) {
+        return [[-radius / 2, +radius * (ROOT_3 / 2)],
+                [-radius / 2, -radius * (ROOT_3 / 2)],
+                [+radius, 0]]
+    }
+
     this.addListen = function(url) {
         let datum = {
             url: url,
-            audioElement: d3.select("body").append("audio").attr("src", url)
+            audioElement: new Audio([url])
         }
 
         this.graph.nodes.push(datum);
 
         this.node = this.node.data(this.graph.nodes, d => d.url )
-            .enter().append("circle")
-            .attr("r", 5)
-            .on("click", d => d.audioElement.node().play())
+            .enter().append("g")
+            .classed("node", true)
+            .on("click", d => d.audioElement.play());
+
+        this.node
+            .append("circle")
+            .attr("r", 25)
             .merge(this.node);
+
+        this.node
+            .append("polygon")
+            .attr("points", this._getTrianglePoints(18).map(xy => xy.join(",")).join(" "))
+            .style("fill", "white");
 
         this.restartSim();
     }
