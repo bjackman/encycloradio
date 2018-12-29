@@ -1,7 +1,13 @@
+/* When the node doesn't have the "playing" class, hide the stop button and make
+   the play button visible */
 svg .node .stopbutton {
     display: none;
 }
+svg .node .playbutton {
+    display: block;
+}
 
+/* Do the opposite when it does have the "playing" class */
 svg .node.playing .stopbutton {
     display: block;
 }

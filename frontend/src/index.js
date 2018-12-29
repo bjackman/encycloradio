@@ -121,7 +121,7 @@ let vis = new function() {
     }
 }
 
-// Class to represent a wikipedia page
+// Not-a-class to represent a wikipedia page
 let Page = function(pageDesc, wikipedia) {
     this.title = pageDesc.title;
     this.wikipedia = wikipedia;
