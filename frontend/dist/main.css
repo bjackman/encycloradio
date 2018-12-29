@@ -1,0 +1,10 @@
+svg .node .stopbutton {
+    display: none;
+}
+
+svg .node.playing .stopbutton {
+    display: block;
+}
+svg .node.playing .playbutton {
+    display: none;
+}

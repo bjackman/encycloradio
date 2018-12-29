@@ -85,7 +85,16 @@ let vis = new function() {
             .enter().append("g")
             .classed("node", true)
             .classed("playing", false)
-            .on("click", d => d.audioElement.play());
+            .on("click", function(d) {
+                let elem = d3.select(this);
+                if (elem.classed("playing")) {
+                    d.audioElement.pause();
+                    elem.classed("playing", false);
+                } else {
+                    d.audioElement.play();
+                    elem.classed("playing", true);
+                }
+            });
 
         let NODE_RADIUS = 25;
         this.node
