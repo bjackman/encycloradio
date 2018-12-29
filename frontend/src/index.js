@@ -104,7 +104,7 @@ let vis = new function() {
 
         // Add two polygons - one for the play button and one for the stop
         // button. We'll use CSS to determine which one is visible.
-        let BUTTON_RADIUS = Math.floor(NODE_RADIUS * 0.8);
+        let BUTTON_RADIUS = Math.floor(NODE_RADIUS * 0.65);
         this.node
             .append("polygon")
             .classed("playbutton", true)
