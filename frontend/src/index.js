@@ -210,23 +210,46 @@ let wikipedia = new function() {
 
     // Return a Promise that resolves to an array of Page objects, which all
     // contain the Listen wikipedia template in their body.
-    this.getPagesWithListens = function() {
-        return fetch(this.request({
+    this.getPagesWithListens = async function*() {
+        let requestParams = {
             action: "query",
             generator: "embeddedin",
             geititle: "Template:Listen",
+            geilimit: "max",
             prop: "templates",
             tltemplates: "Template:Listen",
-            tllimit: 20
-        }))
-            .then(response => response.json())
-            .then(response => {
-                let ret = [];
-                for (let pageDesc of response.query.pages) {
-                    ret.push(new Page(pageDesc, this));
-                }
-                return ret;
-            });
+            // Setting tllimit breaks things because we get a tlcontinue instead
+            // of a geicontinue (i.e. it's continuing the list of templates in a
+            // page instead of the list of pages). Not sure how to fix that so
+            // just don't limit templates.. not sure if this will break stuff.
+            // tllimit: 1
+        };
+
+        while (true) {
+            let result = await fetch(this.request(requestParams))
+                .then(response => response.json());
+
+            if (result.hasOwnProperty("error")) {
+                throw result.error;
+            }
+            if (result.hasOwnProperty("warnings")) {
+                console.log(result.warnings);
+            }
+
+            for (let pageDesc of result.query.pages) {
+                yield new Page(pageDesc, this);
+            }
+
+            // If it couldn't return all of the pages in a single response, WP
+            // puts a "continue" object in the response, if we put its
+            // attributes in the request params and do it again, it will carry
+            // on from where it left off.
+            if (result.hasOwnProperty("continue")) {
+                requestParams = Object.assign(requestParams, result.continue);
+            } else {
+                break;
+            }
+        }
     }
 
     // Get the parse tree for a page with a given title. You probably don't want
@@ -255,13 +278,28 @@ let wikipedia = new function() {
     }
 }
 
-wikipedia.getPagesWithListens()
-    .then(pages => {
-        return pages[0].getListenFilenames()
-    })
-    .then(filenames => {
-        vis.addListen(wikipedia.getUrlForFilename(filenames[0]))
-    });
+window.pages = new Set();
+(async function() {
+    let i = 0;
+    for await (let page of wikipedia.getPagesWithListens()) {
+        window.pages.add(page.title);
+        console.log(page.title);
+
+        if (i++ > 15) {
+            break;
+        }
+    }
+    console.log(window.pages);
+})();
+
+// wikipedia.getPagesWithListens()
+//     .then(pages => {
+//         window.pages = pages;
+//         return pages[0].getListenFilenames()
+//     })
+//     .then(filenames => {
+//         vis.addListen(wikipedia.getUrlForFilename(filenames[0]))
+//     });
 
 // Enable access from console when using webpack, for debugging
 window.wikipedia = wikipedia;
