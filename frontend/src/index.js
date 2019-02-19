@@ -205,23 +205,6 @@ let wikipedia = new function() {
 
     this._pageCache = new Map(); // Keyed by title
 
-    // Look up a page in the cache - if it's there, return it. If not, build it
-    // via the makePage function, store it in the cache, and then return it.
-    this.cachePage = async function(title, makePage) {
-        console.log("Looking up " + title);
-        let cached = this._pageCache.get(title);
-        if (cached) {
-            console.log("Cached!");
-            return cached;
-        } else {
-            let page = await makePage();
-            this._pageCache.set(title, page);
-            console.log("Created new");
-            console.log(page);
-            return page;
-        }
-    }
-
     // Return a request object. Pass in an object with the key/val pairs to put
     // in the query string. The ones that are always required are inserted for you.
     this.request = function(args) {
