@@ -140,6 +140,23 @@ Page.prototype.getParseTree = function() {
     }
     return this._parseTreePromise;
 }
+Page.prototype.getLinkedPages = async function*() {
+    let links = (await this.wikipedia.request({
+        action: "parse",
+        page: this.title,
+        prop: "links"
+    }).then(response => response.json())).parse.links;
+
+    let promises = new Map(links
+                           .filter(link => link.exists)
+                           .map(link => [link.title, wikipedia.getPageByTitle(link.title)]));
+
+    while (promises.size != 0) {
+        let page = await Promise.race(promises.values());
+        promises.delete(page.title);
+        yield page;
+    }
+}
 // Promise to get an array of the filenames for the Listen templates in the page
 Page.prototype.getListenFilenames = function() {
     return this.getParseTree()
@@ -192,6 +209,25 @@ Page.prototype.getListenFilenames = function() {
 let wikipedia = new function() {
     this.urlBase = 'https://en.wikipedia.org/w/api.php';
 
+    this._pageCache = new Map(); // Keyed by title
+
+    // Look up a page in the cache - if it's there, return it. If not, build it
+    // via the makePage function, store it in the cache, and then return it.
+    this.cachePage = async function(title, makePage) {
+        console.log("Looking up " + title);
+        let cached = this._pageCache.get(title);
+        if (cached) {
+            console.log("Cached!");
+            return cached;
+        } else {
+            let page = await makePage();
+            this._pageCache.set(title, page);
+            console.log("Created new");
+            console.log(page);
+            return page;
+        }
+    }
+
     // Return a request object. Pass in an object with the key/val pairs to put
     // in the query string. The ones that are always required are inserted for you.
     this.request = function(args) {
@@ -240,7 +276,9 @@ let wikipedia = new function() {
             }
 
             for (let pageDesc of result.query.pages) {
-                yield new Page(pageDesc, this);
+                let page = new Page(pageDesc, this);
+                this._pageCache.set(pageDesc.title, page);
+                yield page;
             }
 
             // If it couldn't return all of the pages in a single response, WP
@@ -253,6 +291,22 @@ let wikipedia = new function() {
                 break;
             }
         }
+    }
+
+    // Look up a Page by title
+    this.getPageByTitle = async function(title) {
+        let page = this._pageCache.get(title);
+        if (page) {
+            return page;
+        }
+
+        // TODO: Currently the only required field is the title, so we don't
+        // actually need to do a query here. This does mean we could create
+        // invalid Pages.
+        let pageDesc = {"title": title};
+        page = new Page(pageDesc, this);
+        this._pageCache.set(title, page);
+        return page;
     }
 
     // Given the filename of a Wikipedia asset as it would be used in the Wiki
