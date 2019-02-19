@@ -122,88 +122,82 @@ let vis = new function() {
 }
 
 // Not-a-class to represent a wikipedia page
-let Page = function(pageDesc, wikipedia) {
+let Page = function(pageDesc, parseTree, wikipedia) {
     this.title = pageDesc.title;
     this.wikipedia = wikipedia;
-    this._parseTreePromise = null;
+    this.parseTree = parseTree
 }
-// Promise to get the parse tree of the page as an XMLDocument.
-Page.prototype.getParseTree = function() {
-    if (!this._parseTreePromise) {
-        this._parseTreePromise = this.wikipedia.request({
-            action: "parse",
-            page: this.title,
-            prop: "parsetree"
-        }).then(response => response.json()).then(result => {
-            return new DOMParser().parseFromString(result.parse.parsetree, "text/xml");
-        });
-    }
-    return this._parseTreePromise;
-}
+// Async generator to yield Pages that are linked from this one
 Page.prototype.getLinkedPages = async function*() {
+    // TODO: How to cache this?!
+
+    // First make the request to get all the titles
     let links = (await this.wikipedia.request({
         action: "parse",
         page: this.title,
         prop: "links"
     }).then(response => response.json())).parse.links;
 
+    // Now build a promise for each target Page. Store in a map keyed on title.
     let promises = new Map(links
                            .filter(link => link.exists)
                            .map(link => [link.title, wikipedia.getPageByTitle(link.title)]));
 
+    // Now iteratively await the first resolved promise and yield the result,
+    // until all are done.
     while (promises.size != 0) {
         let page = await Promise.race(promises.values());
         promises.delete(page.title);
-        yield page;
+        let listenFilenames = page.getListenFilenames();
+        if (listenFilenames.length) {
+            yield page;
+        }
     }
 }
 // Promise to get an array of the filenames for the Listen templates in the page
 Page.prototype.getListenFilenames = function() {
-    return this.getParseTree()
-        .then(xmlDoc => {
-            let ret = []
-            // This XPath expression finds template elements, then finds title
-            // sub-elements and checks if their text contains "listen"
-            // (converting to lowercase first).
-            // Then it finds part sub-elements, which have a name sub-element
-            // whose text contains "filename", then it takes the text of the value
-            // sub-element.
-            //
-            // Basically we're finding the "foo.ogg" amd "bar.ogg" in template
-            // elements that look like this one:
-            //
-            // <template lineStart="1">
-            //    <title>listen</title>
-            //    <part>
-            //       <name>something</name>
-            //       <equals>=</equals>
-            //       <value>else</value>
-            //    </part>
-            //    <part>
-            //       <name>filename</name>
-            //       <equals>=</equals>
-            //       <value>foo.ogg</value>
-            //    </part>
-            //    <part>
-            //       <name>filename2</name>
-            //       <equals>=</equals>
-            //       <value>bar.ogg</value>
-            //    </part>
-            //    <part>
-            // </template>
+    let ret = []
+    // This XPath expression finds template elements, then finds title
+    // sub-elements and checks if their text contains "listen"
+    // (converting to lowercase first).
+    // Then it finds part sub-elements, which have a name sub-element
+    // whose text contains "filename", then it takes the text of the value
+    // sub-element.
+    //
+    // Basically we're finding the "foo.ogg" amd "bar.ogg" in template
+    // elements that look like this one:
+    //
+    // <template lineStart="1">
+    //    <title>listen</title>
+    //    <part>
+    //       <name>something</name>
+    //       <equals>=</equals>
+    //       <value>else</value>
+    //    </part>
+    //    <part>
+    //       <name>filename</name>
+    //       <equals>=</equals>
+    //       <value>foo.ogg</value>
+    //    </part>
+    //    <part>
+    //       <name>filename2</name>
+    //       <equals>=</equals>
+    //       <value>bar.ogg</value>
+    //    </part>
+    //    <part>
+    // </template>
 
-            let xpath = `
-                //template[contains(translate(./title/text(), "LISTEN", "listen"), "listen")]
-                    /part[contains(translate(name/text(), "FILENAME", "filename"), "filename")]
-                        /value
-                            /text()
-            `;
-            let xpathResult = xmlDoc.evaluate(xpath, xmlDoc);
-            for (let filename = xpathResult.iterateNext(); filename; filename = xpathResult.iterateNext()) {
-                ret.push(filename.textContent);
-            }
-            return ret;
-        });
+    let xpath = `
+        //template[contains(translate(./title/text(), "LISTEN", "listen"), "listen")]
+            /part[contains(translate(name/text(), "FILENAME", "filename"), "filename")]
+                /value
+                    /text()
+    `;
+    let xpathResult = this.parseTree.evaluate(xpath, this.parseTree);
+    for (let filename = xpathResult.iterateNext(); filename; filename = xpathResult.iterateNext()) {
+        ret.push(filename.textContent);
+    }
+    return ret;
 }
 
 let wikipedia = new function() {
@@ -276,9 +270,7 @@ let wikipedia = new function() {
             }
 
             for (let pageDesc of result.query.pages) {
-                let page = new Page(pageDesc, this);
-                this._pageCache.set(pageDesc.title, page);
-                yield page;
+                yield await this.getPageByTitle(pageDesc.title);
             }
 
             // If it couldn't return all of the pages in a single response, WP
@@ -293,6 +285,15 @@ let wikipedia = new function() {
         }
     }
 
+    this._getParseTree = async function(title) {
+        let result = await this.request({
+            action: "parse",
+            page: title,
+            prop: "parsetree"
+        }).then(response => response.json())
+        return new DOMParser().parseFromString(result.parse.parsetree, "text/xml");
+    }
+
     // Look up a Page by title
     this.getPageByTitle = async function(title) {
         let page = this._pageCache.get(title);
@@ -300,11 +301,8 @@ let wikipedia = new function() {
             return page;
         }
 
-        // TODO: Currently the only required field is the title, so we don't
-        // actually need to do a query here. This does mean we could create
-        // invalid Pages.
         let pageDesc = {"title": title};
-        page = new Page(pageDesc, this);
+        page = new Page(pageDesc, await this._getParseTree(title), this);
         this._pageCache.set(title, page);
         return page;
     }
@@ -329,12 +327,8 @@ window.pages = new Set();
 (async function() {
     let i = 0;
     for await (let page of wikipedia.getPagesWithListens()) {
-        window.pages.add(page.title);
-        console.log(page.title);
-
-        if (i++ > 15) {
-            break;
-        }
+        window.pages.add(page);
+        break;
     }
     console.log(window.pages);
 })();
