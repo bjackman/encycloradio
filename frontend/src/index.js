@@ -125,20 +125,20 @@ let vis = new function() {
 let Page = function(pageDesc, wikipedia) {
     this.title = pageDesc.title;
     this.wikipedia = wikipedia;
-    this._parseTree = this._parseTreePromise = null;
+    this._parseTreePromise = null;
 }
 // Promise to get the parse tree of the page as an XMLDocument.
 Page.prototype.getParseTree = function() {
-    if (this._parseTree) {
-        return this._parseTree;
-    }
     if (!this._parseTreePromise) {
-        this._parseTreePromise = this.wikipedia.getParseTree(this.title);
+        this._parseTreePromise = this.wikipedia.request({
+            action: "parse",
+            page: this.title,
+            prop: "parsetree"
+        }).then(response => response.json()).then(result => {
+            return new DOMParser().parseFromString(result.parse.parsetree, "text/xml");
+        });
     }
-    return this._parseTreePromise.then(result => {
-        this._parseTree = new DOMParser().parseFromString(result.parse.parsetree, "text/xml");
-        return this._parseTree;
-    });
+    return this._parseTreePromise;
 }
 // Promise to get an array of the filenames for the Listen templates in the page
 Page.prototype.getListenFilenames = function() {
@@ -253,16 +253,6 @@ let wikipedia = new function() {
                 break;
             }
         }
-    }
-
-    // Get the parse tree for a page with a given title. You probably don't want
-    // to call this directly, use Page.getParseTree instead
-    this.getParseTree = function(title) {
-        return this.request({
-            action: "parse",
-            page: title,
-            prop: "parsetree"
-        }).then(response => response.json())
     }
 
     // Given the filename of a Wikipedia asset as it would be used in the Wiki
