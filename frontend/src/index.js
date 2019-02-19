@@ -73,25 +73,20 @@ let vis = new function() {
         return [[-d, -d], [-d, +d], [+d, +d], [+d, -d]]
     }
 
-    this.addListen = function(url) {
-        let datum = {
-            url: url,
-            audioElement: new Audio([url])
-        }
+    this.addListen = function(listen) {
+        this.graph.nodes.push(listen);
 
-        this.graph.nodes.push(datum);
-
-        this.node = this.node.data(this.graph.nodes, d => d.url )
+        this.node = this.node.data(this.graph.nodes, d => d.url)
             .enter().append("g")
             .classed("node", true)
             .classed("playing", false)
             .on("click", function(d) {
                 let elem = d3.select(this);
                 if (elem.classed("playing")) {
-                    d.audioElement.pause();
+                    d.audio.pause();
                     elem.classed("playing", false);
                 } else {
-                    d.audioElement.play();
+                    d.audio.play();
                     elem.classed("playing", true);
                 }
             });
@@ -121,6 +116,26 @@ let vis = new function() {
     }
 }
 
+// Not-a-class to represent a file that can be listened to on a wikipedia page
+let Listen = function(page, filename) {
+    this.page = page;
+
+    // There's probably further normalisation to do here... not sure what it
+    // is. I'm sure I saw that info somewhere once.
+    // TODO this conversion from filename to URL should be a more coupled with
+    // the wikipedia object.
+    let normalizedFilename = filename.replace(new RegExp(" ", "g"), "_")
+    // Wikipedia enables this option, so we have to do some md5
+    // jiggery-pokery:
+    // https://www.mediawiki.org/wiki/Manual:$wgHashedUploadDirectory TODO
+    let md5sum = md5(normalizedFilename);
+    // Not exactly sure what the base URL should be, but this one seems to work...
+    let baseUrl = "https://upload.wikimedia.org/wikipedia/commons"
+    let url = `${baseUrl}/${md5sum[0]}/${md5sum.slice(0, 2)}/${encodeURIComponent(normalizedFilename)}`
+
+    this.audio = new Audio([url]);
+}
+
 // Not-a-class to represent a wikipedia page
 let Page = function(pageDesc, parseTree, wikipedia) {
     this.title = pageDesc.title;
@@ -148,14 +163,14 @@ Page.prototype.getLinkedPages = async function*() {
     while (promises.size != 0) {
         let page = await Promise.race(promises.values());
         promises.delete(page.title);
-        let listenFilenames = page.getListenFilenames();
-        if (listenFilenames.length) {
+        let listens = page.getListens();
+        if (listens.length) {
             yield page;
         }
     }
 }
-// Promise to get an array of the filenames for the Listen templates in the page
-Page.prototype.getListenFilenames = function() {
+// Promise to get an array of the files that can be listened to on this page
+Page.prototype.getListens = function() {
     let ret = []
     // This XPath expression finds template elements, then finds title
     // sub-elements and checks if their text contains "listen"
@@ -195,7 +210,7 @@ Page.prototype.getListenFilenames = function() {
     `;
     let xpathResult = this.parseTree.evaluate(xpath, this.parseTree);
     for (let filename = xpathResult.iterateNext(); filename; filename = xpathResult.iterateNext()) {
-        ret.push(filename.textContent);
+        ret.push(new Listen(this, filename.textContent));
     }
     return ret;
 }
@@ -313,17 +328,8 @@ window.pages = new Set();
         window.pages.add(page);
         break;
     }
-    console.log(window.pages);
+    vis.addListen(window.pages.values().next().value.getListens()[0]);
 })();
-
-// wikipedia.getPagesWithListens()
-//     .then(pages => {
-//         window.pages = pages;
-//         return pages[0].getListenFilenames()
-//     })
-//     .then(filenames => {
-//         vis.addListen(wikipedia.getUrlForFilename(filenames[0]))
-//     });
 
 // Enable access from console when using webpack, for debugging
 window.wikipedia = wikipedia;
