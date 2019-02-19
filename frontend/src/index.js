@@ -125,17 +125,20 @@ let vis = new function() {
 let Page = function(pageDesc, wikipedia) {
     this.title = pageDesc.title;
     this.wikipedia = wikipedia;
-    this._parseTreePromise = null;
+    this._parseTree = this._parseTreePromise = null;
 }
 // Promise to get the parse tree of the page as an XMLDocument.
 Page.prototype.getParseTree = function() {
+    if (this._parseTree) {
+        return this._parseTree;
+    }
     if (!this._parseTreePromise) {
         this._parseTreePromise = this.wikipedia.getParseTree(this.title);
     }
-    return this._parseTreePromise
-        .then(result => {
-            return new DOMParser().parseFromString(result.parse.parsetree, "text/xml")
-        });
+    return this._parseTreePromise.then(result => {
+        this._parseTree = new DOMParser().parseFromString(result.parse.parsetree, "text/xml");
+        return this._parseTree;
+    });
 }
 // Promise to get an array of the filenames for the Listen templates in the page
 Page.prototype.getListenFilenames = function() {
