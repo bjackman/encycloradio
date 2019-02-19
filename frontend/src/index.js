@@ -205,10 +205,10 @@ let wikipedia = new function() {
         }
         let queryString = parts.join('&')
         let url = `${this.urlBase}?${queryString}`;
-        return new Request(url, {method: "GET",
-                                 mode: "cors",
-                                 headers: {"Origin": "http://localhost:8080",
-                                           "Content-Type": "application/json"}});
+        return fetch(new Request(url, {method: "GET",
+                                       mode: "cors",
+                                       headers: {"Origin": "http://localhost:8080",
+                                                 "Content-Type": "application/json"}}));
     }
 
     // Return a Promise that resolves to an array of Page objects, which all
@@ -229,7 +229,7 @@ let wikipedia = new function() {
         };
 
         while (true) {
-            let result = await fetch(this.request(requestParams))
+            let result = await this.request(requestParams)
                 .then(response => response.json());
 
             if (result.hasOwnProperty("error")) {
@@ -258,11 +258,11 @@ let wikipedia = new function() {
     // Get the parse tree for a page with a given title. You probably don't want
     // to call this directly, use Page.getParseTree instead
     this.getParseTree = function(title) {
-        return fetch(this.request({
+        return this.request({
             action: "parse",
             page: title,
             prop: "parsetree"
-        })).then(response => response.json())
+        }).then(response => response.json())
     }
 
     // Given the filename of a Wikipedia asset as it would be used in the Wiki
