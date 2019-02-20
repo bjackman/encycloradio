@@ -125,7 +125,7 @@ let Listen = function(page, filename) {
     // is. I'm sure I saw that info somewhere once.
     // TODO this conversion from filename to URL should be a more coupled with
     // the wikipedia object.
-    let normalizedFilename = filename.replace(new RegExp(" ", "g"), "_")
+    let normalizedFilename = filename.trim().replace(new RegExp(" ", "g"), "_");
     // Wikipedia enables this option, so we have to do some md5
     // jiggery-pokery:
     // https://www.mediawiki.org/wiki/Manual:$wgHashedUploadDirectory TODO
