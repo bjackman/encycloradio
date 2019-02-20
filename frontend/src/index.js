@@ -81,6 +81,7 @@ let vis = new function() {
             .classed("node", true)
             .classed("playing", false)
             .on("click", function(d) {
+                console.log(`Vis playing/pausing ${d.url}`);
                 let elem = d3.select(this);
                 if (elem.classed("playing")) {
                     d.audio.pause();
@@ -131,9 +132,11 @@ let Listen = function(page, filename) {
     let md5sum = md5(normalizedFilename);
     // Not exactly sure what the base URL should be, but this one seems to work...
     let baseUrl = "https://upload.wikimedia.org/wikipedia/commons"
-    let url = `${baseUrl}/${md5sum[0]}/${md5sum.slice(0, 2)}/${encodeURIComponent(normalizedFilename)}`
+    this.url = `${baseUrl}/${md5sum[0]}/${md5sum.slice(0, 2)}/${encodeURIComponent(normalizedFilename)}`
 
-    this.audio = new Audio([url]);
+    console.log(`Listen(${filename.trim()}) computed URL: ${this.url}`);
+
+    this.audio = new Audio([this.url]);
 }
 
 // Not-a-class to represent a wikipedia page
@@ -210,6 +213,7 @@ Page.prototype.getListens = function() {
     `;
     let xpathResult = this.parseTree.evaluate(xpath, this.parseTree);
     for (let filename = xpathResult.iterateNext(); filename; filename = xpathResult.iterateNext()) {
+        console.log(`Page(${this.title}) found Listen: ${filename.textContent}`);
         ret.push(new Listen(this, filename.textContent));
     }
     return ret;
